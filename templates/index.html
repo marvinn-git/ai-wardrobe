@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>AI Wardrobe (Localhost)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    h1, h2 { margin-bottom: 10px; }
+    form { max-width: 400px; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, select { width: 100%; padding: 8px; margin-top: 6px; }
+    button { margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    img { width: 100%; border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>AI Wardrobe (Localhost)</h1>
+
+<h2>Añadir prenda</h2>
+<form action="/add" method="post" enctype="multipart/form-data">
+  <label>Nombre</label>
+  <input name="name" required placeholder="Ej: Camiseta blanca" />
+
+  <label>Categoría</label>
+  <select name="category" required>
+    <option value="tshirt">Camiseta</option>
+    <option value="pants">Pantalón</option>
+    <option value="shorts">Shorts</option>
+    <option value="hoodie">Hoodie</option>
+    <option value="shoes">Zapatillas</option>
+  </select>
+
+  <label>Foto prenda sola</label>
+  <input type="file" name="img_solo" accept="image/*" required />
+
+  <label>Foto prenda puesta</label>
+  <input type="file" name="img_worn" accept="image/*" required />
+
+  <button type="submit">Guardar</button>
+</form>
+
+<h2>Tu armario</h2>
+<div class="grid">
+  {% for it in items %}
+    <div class="card">
+      <strong>{{ it.name }}</strong><br/>
+      <small>{{ it.category }}</small>
+
+      <div class="row">
+        <div>
+          <div style="font-size:12px">Sola</div>
+          <img src="{{ it.img_solo }}">
+        </div>
+        <div>
+          <div style="font-size:12px">Puesta</div>
+          <img src="{{ it.img_worn }}">
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+</body>
+</html>
