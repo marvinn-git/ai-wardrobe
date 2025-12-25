@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from auth import register_user, login_user
+import session
 
 # -------------------------
 # Estado temporal en memoria (sin DB aún)
@@ -23,20 +25,85 @@ class App(tk.Tk):
         container.pack(fill="both", expand=True)
 
         self.frames = {}
-        for F in (HomeScreen, WardrobeScreen, OutfitsScreen, InspoScreen):
+        for F in (AuthScreen, HomeScreen, WardrobeScreen, OutfitsScreen, InspoScreen):
             frame = F(parent=container, controller=self)
             self.frames[F.__name__] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show("HomeScreen")
+        self.show("AuthScreen")
 
     def show(self, frame_name: str):
         self.frames[frame_name].tkraise()
-        # refrescar si hace falta
+        if frame_name == "HomeScreen":
+            self.frames[frame_name].refresh_user()
         if frame_name == "WardrobeScreen":
             self.frames[frame_name].refresh()
         if frame_name == "OutfitsScreen":
             self.frames[frame_name].refresh()
+        
+
+
+class AuthScreen(ttk.Frame):
+    def __init__(self, parent, controller: App):
+        super().__init__(parent)
+        self.controller = controller
+
+        ttk.Label(self, text="AI Wardrobe", font=("Arial", 22)).pack(pady=(20, 10))
+        ttk.Label(self, text="Login / Register (MongoDB)", foreground="gray").pack(pady=(0, 20))
+
+        form = ttk.Frame(self, padding=12)
+        form.pack()
+
+        ttk.Label(form, text="Email").grid(row=0, column=0, sticky="w")
+        self.email_var = tk.StringVar()
+        ttk.Entry(form, textvariable=self.email_var, width=35).grid(row=1, column=0, pady=(4, 12))
+
+        ttk.Label(form, text="Password").grid(row=2, column=0, sticky="w")
+        self.pass_var = tk.StringVar()
+        ttk.Entry(form, textvariable=self.pass_var, show="*", width=35).grid(row=3, column=0, pady=(4, 12))
+
+        btns = ttk.Frame(self)
+        btns.pack(pady=10)
+
+        ttk.Button(btns, text="Login", command=self.do_login, width=18).grid(row=0, column=0, padx=8)
+        ttk.Button(btns, text="Register", command=self.do_register, width=18).grid(row=0, column=1, padx=8)
+
+        self.msg = ttk.Label(self, text="", foreground="red")
+        self.msg.pack(pady=10)
+
+    def do_login(self):
+        email = self.email_var.get().strip()
+        password = self.pass_var.get().strip()
+        if not email or not password:
+            self.msg.config(text="Email y password son obligatorios.")
+            return
+
+        uid, err = login_user(email, password)
+        if err:
+            self.msg.config(text=err)
+            return
+
+        session.current_user_id = uid
+        session.current_user_email = email.lower()
+        self.msg.config(text="")
+        self.controller.show("HomeScreen")
+
+    def do_register(self):
+        email = self.email_var.get().strip()
+        password = self.pass_var.get().strip()
+        if not email or not password:
+            self.msg.config(text="Email y password son obligatorios.")
+            return
+
+        uid, err = register_user(email, password)
+        if err:
+            self.msg.config(text=err)
+            return
+
+        session.current_user_id = uid
+        session.current_user_email = email.lower()
+        self.msg.config(text="")
+        self.controller.show("HomeScreen")
 
 
 class HomeScreen(ttk.Frame):
@@ -50,6 +117,10 @@ class HomeScreen(ttk.Frame):
         subtitle = ttk.Label(self, text="Esqueleto de pantallas (sin login / sin DB todavía)")
         subtitle.pack(pady=(0, 25))
 
+        self.user_label = ttk.Label(self, text="Usuario: (no logueado)")
+        self.user_label.pack(pady=(0, 20))
+
+
         btn_frame = ttk.Frame(self)
         btn_frame.pack()
 
@@ -58,6 +129,13 @@ class HomeScreen(ttk.Frame):
         ttk.Button(btn_frame, text="Abrir Armario", command=lambda: controller.show("WardrobeScreen"), **big_style).grid(row=0, column=0, padx=10, pady=10)
         ttk.Button(btn_frame, text="Outfits", command=lambda: controller.show("OutfitsScreen"), **big_style).grid(row=0, column=1, padx=10, pady=10)
         ttk.Button(btn_frame, text="Get Inspo", command=lambda: controller.show("InspoScreen"), **big_style).grid(row=0, column=2, padx=10, pady=10)
+
+    def refresh_user(self):
+        if session.current_user_email:
+            self.user_label.config(text=f"Usuario: {session.current_user_email}")
+        else:
+            self.user_label.config(text="Usuario: (no logueado)")    
+
 
 
 class WardrobeScreen(ttk.Frame):
