@@ -85,22 +85,35 @@ class WardrobeScreen(ttk.Frame):
         self.filter_combo.pack(side="left")
         self.filter_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
 
-        # Lista
-        body = ttk.Frame(self)
-        body.pack(fill="both", expand=True, pady=(10, 0))
+        # --- Scrollable area (secciones + grid) ---
+        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True, pady=(10, 0))
 
-        self.listbox = tk.Listbox(body, height=18)
-        self.listbox.pack(side="left", fill="both", expand=True)
+        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollbar.pack(side="right", fill="y")
 
-        scrollbar = ttk.Scrollbar(body, orient="vertical", command=self.listbox.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.listbox.configure(yscrollcommand=scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.inner = ttk.Frame(self.canvas)
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
+
+        def on_configure(event):
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        def on_canvas_resize(event):
+            self.canvas.itemconfig(self.canvas_window, width=event.width)
+
+        self.inner.bind("<Configure>", on_configure)
+        self.canvas.bind("<Configure>", on_canvas_resize)
 
         self.hint = ttk.Label(self, text="(Vacío) Añade ropa para verla aquí.")
         self.hint.pack(pady=10)
 
     def refresh(self):
-        self.listbox.delete(0, tk.END)
+        # limpiar contenido anterior
+        if hasattr(self, "inner"):
+            for child in self.inner.winfo_children():
+                child.destroy()
 
         selected_filter = self.filter_var.get()
         items = WARDROBE_ITEMS
@@ -110,15 +123,37 @@ class WardrobeScreen(ttk.Frame):
 
         if not items:
             self.hint.configure(text="(Vacío) Añade ropa para verla aquí.")
+            return
         else:
             self.hint.configure(text="")
 
-        for idx, it in enumerate(items):
-            cats = ", ".join(it.get("categories", []))
-            tags = ", ".join(it.get("tags", [])) if it.get("tags") else "-"
-            name = it.get("name", "Sin nombre")
-            self.listbox.insert(tk.END, f"{name}  |  {cats}  |  Tags: {tags}")
+        # Agrupar por primera categoría (simple por ahora)
+        grouped = {}
+        for it in items:
+            cat = it.get("categories", ["Sin categoría"])[0]
+            grouped.setdefault(cat, []).append(it)
 
+        # Crear secciones + grid
+        for cat, cat_items in grouped.items():
+            section = ttk.LabelFrame(self.inner, text=cat, padding=10)
+            section.pack(fill="x", padx=8, pady=8)
+
+            cols = 3
+            for i, it in enumerate(cat_items):
+                card = ttk.Frame(section, padding=10, relief="solid")
+                r = i // cols
+                c = i % cols
+                card.grid(row=r, column=c, padx=8, pady=8, sticky="nsew")
+
+                name = it.get("name", "Sin nombre")
+                ttk.Label(card, text=name, font=("Arial", 11)).pack()
+
+                ttk.Label(card, text="(imagen pronto)", foreground="gray").pack(pady=(6, 0))
+
+            for c in range(cols):
+                section.columnconfigure(c, weight=1)
+
+    
     def open_add_dialog(self):
         AddItemDialog(self, on_save=self.add_item)
 
@@ -127,22 +162,8 @@ class WardrobeScreen(ttk.Frame):
         self.refresh()
 
     def delete_selected(self):
-        sel = self.listbox.curselection()
-        if not sel:
-            messagebox.showinfo("Borrar", "Selecciona una prenda primero.")
-            return
-
-        # OJO: como filtramos, el index de listbox no siempre coincide con WARDROBE_ITEMS.
-        # Para el esqueleto, lo hacemos simple: borrado por nombre+cats (suficiente por ahora).
-        line = self.listbox.get(sel[0])
-        name = line.split("|")[0].strip()
-
-        for i, it in enumerate(WARDROBE_ITEMS):
-            if it.get("name") == name:
-                del WARDROBE_ITEMS[i]
-                break
-
-        self.refresh()
+        messagebox.showinfo("Borrar", "En el siguiente paso haremos selección por click en cards.")
+   
 
 
 class OutfitsScreen(ttk.Frame):
